@@ -23,7 +23,7 @@ void test_001() {
 	Board board(test_board, 9);
 
 	UCTSample player;
-	int xy = player.select_move(board, BLACK);
+	XY xy = player.select_move(board, BLACK);
 
 	for (int i = 0; i < player.root->child_num; i++)
 	{
@@ -49,7 +49,7 @@ void test_002() {
 	Board board(test_board, 9);
 
 	UCTSample player;
-	int xy = player.select_move(board, WHITE);
+	XY xy = player.select_move(board, WHITE);
 
 	for (int i = 0; i < player.root->child_num; i++)
 	{
@@ -75,7 +75,7 @@ void test_003() {
 	Board board(test_board, 9);
 
 	UCTSample player;
-	int xy = player.select_move(board, WHITE);
+	XY xy = player.select_move(board, WHITE);
 
 	for (int i = 0; i < player.root->child_num; i++)
 	{

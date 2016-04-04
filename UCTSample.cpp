@@ -19,7 +19,7 @@ UCTNode* create_root_node()
 	return p_node_pool;
 }
 
-UCTNode* create_node(const int xy)
+UCTNode* create_node(const XY xy)
 {
 	p_node_pool++;
 	p_node_pool->xy = xy;
@@ -33,29 +33,19 @@ UCTNode* create_node(const int xy)
 // ノード展開
 void UCTNode::expand_node(const Board& board)
 {
-	for (int xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
+	for (XY xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
 	{
 		if (board[xy] == EMPTY)
 		{
-			if (child_num == 0)
-			{
-				child = create_node(xy); // 先頭のポインタ
-			}
-			else {
-				create_node(xy); // 連続した場所に作成される
-			}
+			create_node(xy);
 			child_num++;
 		}
 	}
 	// PASSを追加
-	if (child_num == 0)
-	{
-		child = create_node(PASS);
-	}
-	else {
-		create_node(PASS);
-	}
+	child = create_node(PASS);
 	child_num++;
+
+	child -= (child_num - 1); // 先頭のポインタ
 }
 
 // 終局 勝敗を返す
@@ -66,7 +56,7 @@ int end_game(const Board& board, const Color color)
 	// 石の数
 	int stone_num[] = { 0, 0, 0, 0 };
 
-	for (int xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
+	for (XY xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
 	{
 		Color c = board[xy];
 		stone_num[c]++;
@@ -126,7 +116,7 @@ int playout(Board& board, UCTNode* node, const Color color, const Color root_col
 	{
 		// 候補手一覧
 		int possibles_num = 0;
-		for (int xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
+		for (XY xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
 		{
 			if (board[xy] == EMPTY)
 			{

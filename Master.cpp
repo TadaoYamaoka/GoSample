@@ -17,6 +17,10 @@ static Player* players[2] = { playerList[0], playerList[0] };
 UCTNode result[19*19];
 int result_num;
 
+// 棋譜
+XY record[19*19+200];
+int record_num;
+
 const int MARGIN = 24;
 int GRID_SIZE = 9;
 const int GRID_WIDTH = 45;
@@ -30,7 +34,9 @@ DWORD style = WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME ^ WS_MAXIMIZEBOX;
 HINSTANCE hInstance;
 HBRUSH hBrushBoard;
 HPEN hPenBoard;
+HPEN hPenLast;
 HFONT hFontPlayout;
+HFONT hFontPass;
 
 float scaleX, scaleY;
 
@@ -61,12 +67,18 @@ int wmain(int argc, wchar_t* argv[]) {
 		if (wcscmp(argv[i], L"-gtp") == 0)
 		{
 			isGTPMode = true;
-
-			setbuf(stdout, NULL);
-			setbuf(stderr, NULL);  // stderrに書くとGoGuiに表示される。
-
-			// 監視スレッド起動
-			CreateThread(NULL, 0, ThreadProc, NULL, 0, NULL);
+		}
+		if (wcscmp(argv[i], L"-size") == 0)
+		{
+			if (i + 1 < argc)
+			{
+				int size = _wtoi(argv[i + 1]);
+				if (size >= 9 && size <= 19)
+				{
+					GRID_SIZE = size;
+					board.init(size);
+				}
+			}
 		}
 		else {
 			// プレイアウト数
@@ -76,6 +88,17 @@ int wmain(int argc, wchar_t* argv[]) {
 				PLAYOUT_MAX = n;
 			}
 		}
+	}
+
+	// GTPモード
+	if (isGTPMode)
+	{
+		// 標準入出力のバッファリングをオフにする
+		setbuf(stdout, NULL);
+		setbuf(stderr, NULL);  // stderrに書くとGoGuiに表示される。
+
+		// 監視スレッド起動
+		CreateThread(NULL, 0, ThreadProc, NULL, 0, NULL);
 	}
 
 	WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
@@ -114,12 +137,17 @@ int wmain(int argc, wchar_t* argv[]) {
 	// GDIオブジェクト作成
 	hBrushBoard = CreateSolidBrush(RGB(190, 160, 60));
 	hPenBoard = (HPEN)CreatePen(PS_SOLID, scaledX(2), RGB(0, 0, 0));
+	hPenLast = (HPEN)CreatePen(PS_SOLID, scaledX(2), RGB(128, 128, 128));
 	HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 	LOGFONT lf;
 	GetObject(hFont, sizeof(lf), &lf);
 	lf.lfHeight = -scaledY(12);
 	lf.lfWidth = 0;
 	hFontPlayout = CreateFontIndirect(&lf);
+	// Passフォント
+	lf.lfHeight = -scaledY(16);
+	lf.lfWeight = FW_BOLD;
+	hFontPass = CreateFontIndirect(&lf);
 
 	ShowWindow(hMainWnd, SW_SHOW);
 	UpdateWindow(hMainWnd);
@@ -209,6 +237,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// 開始
 			Color color = BLACK;
 			Color pre_xy = -1;
+			record_num = 0;
 
 			isPalying = true;
 			while (isPalying)
@@ -218,7 +247,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				// 手を選択
 				Player* current_player = players[color - 1];
-				int xy = current_player->select_move(board_tmp, color);
+				XY xy = current_player->select_move(board_tmp, color);
 
 				// 石を打つ
 				MoveResult err = board.move(xy, color);
@@ -236,6 +265,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				pre_xy = xy;
 				color = opponent(color);
+				record[record_num++] = xy; // 棋譜追加
 
 				// 描画更新
 				if (typeid(*current_player) == typeid(UCTSample))
@@ -261,6 +291,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 			isPalying = false;
+
+			// SGFで棋譜を出力
+			printf("(;GM[1]SZ[%d]KM[%.1f]\n", GRID_SIZE, KOMI);
+			for (int i = 0; i < record_num; i++) {
+				XY xy = record[i];
+				int x = get_x(xy);
+				int y = get_y(xy);
+				const char *sStone[2] = { "B", "W" };
+				printf(";%s", sStone[i & 1]);
+				if (xy == PASS) {
+					printf("[]");
+				}
+				else {
+					printf("[%c%c]", x + 'a' - 1, y + 'a' - 1);
+				}
+				if (((i + 1) % 10) == 0) printf("\n");
+			}
+			printf("\n)\n");
+
 			return 0;
 		}
 		}
@@ -290,7 +339,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 
 		// 石を描画
-		for (int xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
+		for (XY xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
 		{
 			int x = scaledX(MARGIN + GRID_WIDTH * (get_x(xy) - 0.5f));
 			int y = scaledY(MARGIN + GRID_WIDTH * (get_y(xy) - 0.5f));
@@ -303,6 +352,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			{
 				SelectObject(hDC, (HBRUSH)GetStockObject(WHITE_BRUSH));
 				Ellipse(hDC, x, y, x + GRID_WIDTH, y + GRID_WIDTH);
+			}
+		}
+
+		// 最後に打たれた石にマーク
+		if (record_num > 0)
+		{
+			XY xy = record[record_num - 1];
+			if (xy != PASS)
+			{
+				int x = scaledX(MARGIN + GRID_WIDTH * (get_x(xy) - 0.5f));
+				int y = scaledY(MARGIN + GRID_WIDTH * (get_y(xy) - 0.5f));
+				SelectObject(hDC, GetStockObject(NULL_BRUSH));
+				SelectObject(hDC, hPenLast);
+				Ellipse(hDC, x, y, x + GRID_WIDTH, y + GRID_WIDTH);
+			}
+			else {
+				SetTextColor(hDC, (record_num & 1) ? RGB(0, 0, 0) : RGB(255, 255, 255));
+				SetBkMode(hDC, TRANSPARENT);
+				HFONT hPrevFont = (HFONT)SelectObject(hDC, hFontPass);
+				int drawX = scaledX(MARGIN + GRID_WIDTH * GRID_SIZE / 2);
+				int drawY = scaledY(MARGIN);
+				TextOut(hDC, drawX, drawY, L"PASS", 4);
+				SelectObject(hDC, hPrevFont);
 			}
 		}
 
@@ -431,6 +503,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 		else if (strcmp(line, "clear_board") == 0)
 		{
 			board.init(GRID_SIZE);
+			record_num = 0;
 			printf("= \n\n");
 		}
 		else if (strncmp(line, "komi", 4) == 0)
@@ -443,6 +516,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 			char charColor = line[5];
 			Color color = (charColor == 'B') ? BLACK : WHITE;
 
+			XY xy;
 			if (strcmp(line + 7, "PASS") != 0)
 			{
 				char charX = line[7];
@@ -456,12 +530,18 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 				}
 				int y = GRID_SIZE - atoi(line + 8) + 1;
 
-				int xy = x + BOARD_WIDTH * y;
+				XY xy = x + BOARD_WIDTH * y;
 
 				board.move(xy, color);
 
 				InvalidateRect(hMainWnd, NULL, FALSE);
 			}
+			else {
+				xy = PASS;
+			}
+
+			board.move(PASS, color);
+			record[record_num++] = xy; // 棋譜追加
 
 			printf("= \n\n");
 		}
@@ -472,8 +552,9 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 
 			Player* current_player = players[color - 1];
 
-			int xy = current_player->select_move(board, color);
+			XY xy = current_player->select_move(board, color);
 			board.move(xy, color);
+			record[record_num++] = xy; // 棋譜追加
 
 			if (xy == PASS)
 			{
@@ -483,6 +564,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 				printf("= %c%d\n\n", gtp_axis_x[get_x(xy)], GRID_SIZE - get_y(xy) + 1);
 			}
 
+			// UCTの勝率を保存
 			if (typeid(*current_player) == typeid(UCTSample))
 			{
 				UCTNode* root = ((UCTSample*)current_player)->root;

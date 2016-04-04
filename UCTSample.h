@@ -6,7 +6,7 @@ extern int PLAYOUT_MAX;
 class UCTNode
 {
 public:
-	int xy;
+	XY xy;
 	int playout_num;
 	int playout_num_sum;
 	int win_num;

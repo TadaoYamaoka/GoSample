@@ -6,12 +6,12 @@ double KOMI = 6.5;
 int BOARD_SIZE;
 int BOARD_WIDTH;
 int BOARD_MAX;
-int DIR4[4];
+XY DIR4[4];
 
 bool checked[(19 + 2) * (19 + 2)];
 
 // 呼吸点の数と連結した石の数を取得(内部用再帰処理)
-void Board::count_liberties_and_chains_inner(const int xy, const Color color, int &liberties, int &chains)
+void Board::count_liberties_and_chains_inner(const XY xy, const Color color, int &liberties, int &chains)
 {
 	// チェック済みする
 	checked[xy] = true;
@@ -22,7 +22,7 @@ void Board::count_liberties_and_chains_inner(const int xy, const Color color, in
 	// 4方向について
 	for (int d : DIR4)
 	{
-		int xyd = xy + d;
+		XY xyd = xy + d;
 		// チェック済みの場合
 		if (checked[xyd])
 		{
@@ -42,7 +42,7 @@ void Board::count_liberties_and_chains_inner(const int xy, const Color color, in
 }
 
 // 呼吸点の数と連結した石の数を取得
-void Board::count_liberties_and_chains(const int xy, const Color color, int &liberties, int &chains)
+void Board::count_liberties_and_chains(const XY xy, const Color color, int &liberties, int &chains)
 {
 	memset(checked, false, BOARD_MAX);
 	liberties = 0;
@@ -53,7 +53,7 @@ void Board::count_liberties_and_chains(const int xy, const Color color, int &lib
 }
 
 // 石を取る
-void Board::capture(const int xy, const Color color)
+void Board::capture(const XY xy, const Color color)
 {
 	board[xy] = EMPTY;
 	for (int d : DIR4)
@@ -66,7 +66,7 @@ void Board::capture(const int xy, const Color color)
 }
 
 // 石を打つ
-MoveResult Board::move(const int xy, const Color color)
+MoveResult Board::move(const XY xy, const Color color)
 {
 	// パスの場合
 	if (xy == PASS) {
@@ -86,7 +86,7 @@ MoveResult Board::move(const int xy, const Color color)
 
 	for (int i = 0; i < 4; i++)
 	{
-		int xyd = xy + DIR4[i];
+		XY xyd = xy + DIR4[i];
 		Color c = board[xyd];
 		// 空きの場合
 		if (c == EMPTY)
@@ -137,7 +137,7 @@ MoveResult Board::move(const int xy, const Color color)
 	// 石を取る
 	for (int i = 0; i < 4; i++)
 	{
-		int xyd = xy + DIR4[i];
+		XY xyd = xy + DIR4[i];
 		if (around_liberties[i] == 1 && board[xyd] == opponent(color))
 		{
 			// 取る

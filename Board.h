@@ -3,6 +3,7 @@
 #include <memory.h>
 
 typedef signed char Color;
+typedef int XY; // boardの座標を表す値
 
 const Color EMPTY = 0;
 const Color BLACK = 1;
@@ -21,14 +22,14 @@ extern double KOMI;
 extern int BOARD_SIZE;
 extern int BOARD_WIDTH;
 extern int BOARD_MAX;
-extern int DIR4[4];
+extern XY DIR4[4];
 
-inline int get_x(const int xy)
+inline int get_x(const XY xy)
 {
 	return xy % BOARD_WIDTH;
 }
 
-inline int get_y(const int xy)
+inline int get_y(const XY xy)
 {
 	return xy / BOARD_WIDTH;
 }
@@ -41,16 +42,16 @@ class Board
 	Color board[(19+2) * (19+2)];
 
 	// 呼吸点の数と連結した石の数を取得(内部用再帰処理)
-	void count_liberties_and_chains_inner(const int xy, const Color color, int &liberties, int &chains);
+	void count_liberties_and_chains_inner(const XY xy, const Color color, int &liberties, int &chains);
 
 	// 呼吸点の数と連結した石の数を取得
-	void count_liberties_and_chains(const int xy, const Color color, int &liberties, int &chains);
+	void count_liberties_and_chains(const XY xy, const Color color, int &liberties, int &chains);
 
 	// 石を取る
-	void capture(const int xy, const Color color);
+	void capture(const XY xy, const Color color);
 
 public:
-	int ko; // コウ
+	XY ko; // コウ
 
 	Board() {}
 	Board(const int size) {
@@ -107,6 +108,6 @@ public:
 	}
 
 	// 石を打つ
-	MoveResult move(const int xy, const Color color);
+	MoveResult move(const XY xy, const Color color);
 };
 
