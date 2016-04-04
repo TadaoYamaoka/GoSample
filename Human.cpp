@@ -19,9 +19,6 @@ XY Human::select_move(Board& board, Color color)
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
-			else {
-
-			}
 		}
 	}
 	XY ret = xy;
