@@ -17,11 +17,12 @@ static Board board;
 static Player* players[2] = { playerList[0], playerList[0] };
 Player* current_player;
 UCTNode result[19*19];
-int result_num;
+int result_num = 0;
 
 // 棋譜
 XY record[19*19+200];
-int record_num;
+int record_num = 0;
+wchar_t* sgffile;
 
 const int MARGIN = 24;
 int GRID_SIZE = 9;
@@ -51,11 +52,11 @@ inline int scaledY(const float y) {
 
 // GTP用
 bool isGTPMode = false;
-bool gtp_clear_board = false;
-int gtp_boardsize = 0;
+wchar_t* logfile;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 DWORD WINAPI ThreadProc(LPVOID lpParameter);
+void print_sfg();
 
 #ifndef TEST
 int wmain(int argc, wchar_t* argv[]) {
@@ -70,15 +71,44 @@ int wmain(int argc, wchar_t* argv[]) {
 		{
 			isGTPMode = true;
 		}
+		if (wcscmp(argv[i], L"-log") == 0)
+		{
+			if (i + 1 < argc)
+			{
+				i++;
+				logfile = argv[i];
+			}
+		}
+		if (wcscmp(argv[i], L"-sgf") == 0)
+		{
+			if (i + 1 < argc)
+			{
+				i++;
+				sgffile = argv[i];
+			}
+		}
 		if (wcscmp(argv[i], L"-size") == 0)
 		{
 			if (i + 1 < argc)
 			{
-				int size = _wtoi(argv[i + 1]);
+				i++;
+				int size = _wtoi(argv[i]);
 				if (size >= 9 && size <= 19)
 				{
 					GRID_SIZE = size;
 					board.init(size);
+				}
+			}
+		}
+		if (wcscmp(argv[i], L"-komi") == 0)
+		{
+			if (i + 1 < argc)
+			{
+				i++;
+				double komi = _wtof(argv[i]);
+				if (komi >= 0 && komi < GRID_SIZE * GRID_SIZE)
+				{
+					KOMI = komi;
 				}
 			}
 		}
@@ -200,14 +230,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			hWnd, NULL, hInstance, NULL);
 		infoY += scaledY(CTRL_HEIGHT + CTRL_MARGIN * 2);
 
-		for (int i = 0; i < 2; i++)
+		if (!isGTPMode)
 		{
-			for (Player* player : playerList)
+			for (int i = 0; i < 2; i++)
 			{
-				const char* name = typeid(*player).name();
-				SendMessageA(cmbPlayers[i], CB_ADDSTRING, NULL, (LPARAM)name + 6);
+				for (Player* player : playerList)
+				{
+					const char* name = typeid(*player).name();
+					SendMessageA(cmbPlayers[i], CB_ADDSTRING, NULL, (LPARAM)name + 6);
+				}
+				SendMessage(cmbPlayers[i], CB_SETCURSEL, 0, NULL);
 			}
-			SendMessage(cmbPlayers[i], CB_SETCURSEL, 0, NULL);
 		}
 
 		// スタートボタン
@@ -216,6 +249,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		if (isGTPMode)
 		{
+			EnableWindow(cmbPlayers[0], FALSE);
+			EnableWindow(cmbPlayers[1], FALSE);
 			EnableWindow(btnStart, FALSE);
 		}
 
@@ -271,7 +306,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					}
 
 					// 石を打つ
-					MoveResult err = board.move(xy, color);
+					MoveResult err = board.move(xy, color, false);
 
 					if (err != SUCCESS)
 					{
@@ -319,22 +354,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				isPalying = false;
 
 				// SGFで棋譜を出力
-				printf("(;GM[1]SZ[%d]KM[%.1f]\n", GRID_SIZE, KOMI);
-				for (int i = 0; i < record_num; i++) {
-					XY xy = record[i];
-					int x = get_x(xy);
-					int y = get_y(xy);
-					const char *sStone[2] = { "B", "W" };
-					printf(";%s", sStone[i & 1]);
-					if (xy == PASS) {
-						printf("[]");
-					}
-					else {
-						printf("[%c%c]", x + 'a' - 1, y + 'a' - 1);
-					}
-					if (((i + 1) % 10) == 0) printf("\n");
-				}
-				printf("\n)\n");
+				print_sfg();
 
 				return 0;
 			}
@@ -450,7 +470,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					drawY = scaledX(MARGIN);
 				}
 				wchar_t str[20];
-				int len = wsprintf(str, L"%3d/%d\n.%d", result[i].win_num, result[i].playout_num, 100 * result[i].win_num / result[i].playout_num);
+				int len = wsprintf(str, L"%3d/%d\n.%d", result[i].win_num, result[i].playout_num, result[i].playout_num > 0 ? 100 * result[i].win_num / result[i].playout_num : 0);
 				RECT rc = { drawX, drawY, drawX + scaledX(GRID_WIDTH), drawY + scaledY(GRID_WIDTH) };
 				DrawText(hDC, str, len, &rc, DT_CENTER);
 			}
@@ -516,11 +536,25 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 
 	char line[256];
 	char* err;
-	//FILE* fp = fopen("out.txt", "a");
+	FILE* fp;
+	if (logfile)
+	{
+		fp = _wfopen(logfile, L"a");
+		if (!fp)
+		{
+			fprintf(stderr, "log file open error.\n");
+			return 0;
+		}
+	}
 	while ((err = gets_s(line, sizeof(line))) != nullptr)
 	{
-		//fprintf(fp, "%s\n", line);
-		//fflush(fp);
+		// ログ出力
+		if (logfile)
+		{
+			fprintf(fp, "%s\n", line);
+			fflush(fp);
+		}
+
 		if (strcmp(line, "name") == 0)
 		{
 			printf("= GoSample\n\n");
@@ -592,7 +626,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 				xy = PASS;
 			}
 
-			board.move(xy, color);
+			board.move(xy, color, false);
 			record[record_num++] = xy; // 棋譜追加
 
 			printf("= \n\n");
@@ -605,7 +639,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 			Player* current_player = players[color - 1];
 
 			XY xy = current_player->select_move(board, color);
-			board.move(xy, color);
+			board.move(xy, color, false);
 			record[record_num++] = xy; // 棋譜追加
 
 			if (xy == PASS)
@@ -635,10 +669,51 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 		else if (strncmp(line, "quit", 4) == 0)
 		{
 			printf("= \n\n");
+
+			// SGFで棋譜を出力
+			print_sfg();
+
 			break;
 		}
 	}
-	//fclose(fp);
+	if (logfile)
+	{
+		fclose(fp);
+	}
 
 	return 0;
+}
+
+// SGFファイル出力
+void print_sfg()
+{
+	if (!sgffile)
+	{
+		return;
+	}
+
+	FILE* fp = _wfopen(sgffile, L"a");
+	if (!fp)
+	{
+		fprintf(stderr, "SGF file open error.\n");
+		return;
+	}
+
+	fprintf(fp, "(;GM[1]SZ[%d]KM[%.1f]\n", GRID_SIZE, KOMI);
+	for (int i = 0; i < record_num; i++) {
+		XY xy = record[i];
+		int x = get_x(xy);
+		int y = get_y(xy);
+		const char *sStone[2] = { "B", "W" };
+		fprintf(fp, ";%s", sStone[i & 1]);
+		if (xy == PASS) {
+			fprintf(fp, "[]");
+		}
+		else {
+			fprintf(fp, "[%c%c]", x + 'a' - 1, y + 'a' - 1);
+		}
+		if (((i + 1) % 10) == 0) fprintf(fp, "\n");
+	}
+	fprintf(fp, "\n)\n");
+	fclose(fp);
 }

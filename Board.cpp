@@ -66,7 +66,7 @@ void Board::capture(const XY xy, const Color color)
 }
 
 // Î‚ğ‘Å‚Â
-MoveResult Board::move(const XY xy, const Color color)
+MoveResult Board::move(const XY xy, const Color color, bool fill_eye_err)
 {
 	// ƒpƒX‚Ìê‡
 	if (xy == PASS) {
@@ -129,7 +129,7 @@ MoveResult Board::move(const XY xy, const Color color)
 		return KO;
 	}
 	// Šá
-	if (blanks + alives == 4)
+	if (blanks + alives == 4 && fill_eye_err)
 	{
 		return EYE;
 	}

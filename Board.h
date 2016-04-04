@@ -113,6 +113,6 @@ public:
 	}
 
 	// Î‚ğ‘Å‚Â
-	MoveResult move(const XY xy, const Color color);
+	MoveResult move(const XY xy, const Color color, bool fill_eye_err = true);
 };
 

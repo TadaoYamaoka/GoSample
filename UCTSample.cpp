@@ -5,7 +5,7 @@
 const int FPU = 10; // First Play Urgency
 const double C = 0.5; // UCB定数
 const int THR = 20; // ノード展開の閾値
-int PLAYOUT_MAX = 1000;
+int PLAYOUT_MAX = 2000;
 
 const int NODE_MAX = 30000;
 UCTNode node_pool[NODE_MAX]; // ノードプール(高速化のため動的に確保しない)
