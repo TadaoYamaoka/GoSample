@@ -20,5 +20,5 @@ class UCTSample : public Player
 {
 public:
 	UCTNode* root;
-	virtual int select_move(Board& board, Color color);
+	virtual XY select_move(Board& board, Color color);
 };

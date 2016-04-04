@@ -4,16 +4,18 @@
 #include <typeinfo>
 #include <time.h>
 #include "UCTSample.h"
+#include "Human.h"
 #include "test.h"
 
 using namespace std;
 
 // プレイヤー一覧
-Player* playerList[] = {new UCTSample()};
+Player* playerList[] = {new UCTSample(), new Human()};
 
 static bool isPalying = false;
 static Board board;
 static Player* players[2] = { playerList[0], playerList[0] };
+Player* current_player;
 UCTNode result[19*19];
 int result_num;
 
@@ -221,98 +223,149 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_COMMAND:
 	{
-		switch (LOWORD(wParam)) {
-		case BTN_ID_START:
+		if (HIWORD(wParam) == BN_CLICKED)
 		{
-			// ボード初期化
-			board.init(GRID_SIZE);
-
-			// プレイヤー取得
-			for (int i = 0; i < 2; i++)
+			switch (LOWORD(wParam)) {
+			case BTN_ID_START:
 			{
-				int index = SendMessage(cmbPlayers[i], CB_GETCURSEL, NULL, NULL);
-				players[i] = playerList[index];
-			}
+				// ボード初期化
+				board.init(GRID_SIZE);
 
-			// 開始
-			Color color = BLACK;
-			Color pre_xy = -1;
-			record_num = 0;
-
-			isPalying = true;
-			while (isPalying)
-			{
-				// 局面コピー
-				Board board_tmp = board;
-
-				// 手を選択
-				Player* current_player = players[color - 1];
-				XY xy = current_player->select_move(board_tmp, color);
-
-				// 石を打つ
-				MoveResult err = board.move(xy, color);
-
-				if (err != SUCCESS)
+				// プレイヤー取得
+				for (int i = 0; i < 2; i++)
 				{
-					break;
-				}
+					int index = SendMessage(cmbPlayers[i], CB_GETCURSEL, NULL, NULL);
+					players[i] = playerList[index];
 
-				if (xy == PASS && pre_xy == PASS)
-				{
-					// 終局
-					break;
-				}
-
-				pre_xy = xy;
-				color = opponent(color);
-				record[record_num++] = xy; // 棋譜追加
-
-				// 描画更新
-				if (typeid(*current_player) == typeid(UCTSample))
-				{
-					UCTNode* root = ((UCTSample*)current_player)->root;
-					for (int i = 0; i < root->child_num; i++)
+					if (typeid(*players[i]) == typeid(Human))
 					{
-						result[i] = root->child[i]; // 値コピー
+						((Human*)players[i])->init();
 					}
-					result_num = root->child_num;
 				}
+
+				// 開始
+				Color color = BLACK;
+				Color pre_xy = -1;
+				record_num = 0;
+
 				InvalidateRect(hWnd, NULL, FALSE);
 
-				// メッセージ処理
-				MSG msg;
-				while (PeekMessage(&msg, hWnd, 0, 0, PM_NOREMOVE))
+				isPalying = true;
+				while (isPalying)
 				{
-					if (GetMessage(&msg, NULL, 0, 0))
+					// 局面コピー
+					Board board_tmp = board;
+
+					// 手を選択
+					current_player = players[color - 1];
+					XY xy = current_player->select_move(board_tmp, color);
+
+					if (xy < 0)
 					{
-						TranslateMessage(&msg);
-						DispatchMessage(&msg);
+						break;
+					}
+					if (xy != PASS && board[xy] != EMPTY)
+					{
+						// 打ち直し
+						continue;
+					}
+
+					// 石を打つ
+					MoveResult err = board.move(xy, color);
+
+					if (err != SUCCESS)
+					{
+						if (typeid(*current_player) == typeid(Human))
+						{
+							// 打ち直し
+							continue;
+						}
+						break;
+					}
+
+					if (xy == PASS && pre_xy == PASS)
+					{
+						// 終局
+						break;
+					}
+
+					pre_xy = xy;
+					color = opponent(color);
+					record[record_num++] = xy; // 棋譜追加
+
+					// 描画更新
+					if (typeid(*current_player) == typeid(UCTSample))
+					{
+						UCTNode* root = ((UCTSample*)current_player)->root;
+						for (int i = 0; i < root->child_num; i++)
+						{
+							result[i] = root->child[i]; // 値コピー
+						}
+						result_num = root->child_num;
+					}
+					InvalidateRect(hWnd, NULL, FALSE);
+
+					// メッセージ処理
+					MSG msg;
+					while (PeekMessage(&msg, hWnd, 0, 0, PM_NOREMOVE))
+					{
+						if (GetMessage(&msg, NULL, 0, 0))
+						{
+							TranslateMessage(&msg);
+							DispatchMessage(&msg);
+						}
 					}
 				}
-			}
-			isPalying = false;
+				isPalying = false;
 
-			// SGFで棋譜を出力
-			printf("(;GM[1]SZ[%d]KM[%.1f]\n", GRID_SIZE, KOMI);
-			for (int i = 0; i < record_num; i++) {
-				XY xy = record[i];
-				int x = get_x(xy);
-				int y = get_y(xy);
-				const char *sStone[2] = { "B", "W" };
-				printf(";%s", sStone[i & 1]);
-				if (xy == PASS) {
-					printf("[]");
+				// SGFで棋譜を出力
+				printf("(;GM[1]SZ[%d]KM[%.1f]\n", GRID_SIZE, KOMI);
+				for (int i = 0; i < record_num; i++) {
+					XY xy = record[i];
+					int x = get_x(xy);
+					int y = get_y(xy);
+					const char *sStone[2] = { "B", "W" };
+					printf(";%s", sStone[i & 1]);
+					if (xy == PASS) {
+						printf("[]");
+					}
+					else {
+						printf("[%c%c]", x + 'a' - 1, y + 'a' - 1);
+					}
+					if (((i + 1) % 10) == 0) printf("\n");
 				}
-				else {
-					printf("[%c%c]", x + 'a' - 1, y + 'a' - 1);
-				}
-				if (((i + 1) % 10) == 0) printf("\n");
-			}
-			printf("\n)\n");
+				printf("\n)\n");
 
+				return 0;
+			}
+			}
+		}
+		break;
+	}
+	case WM_LBUTTONDOWN:
+	{
+		if (current_player && typeid(*current_player) == typeid(Human))
+		{
+			int xPos = LOWORD(lParam);
+			int yPos = HIWORD(lParam);
+			int x = (int)((xPos / scaleX - MARGIN) / GRID_WIDTH + 0.5f);
+			int y = (int)((yPos / scaleY - MARGIN) / GRID_WIDTH + 0.5f);
+			if (x >= 1 && x <= GRID_SIZE && y >= 0 && y <= GRID_SIZE)
+			{
+				((Human*)current_player)->set_xy(get_xy(x, y));
+			}
 			return 0;
 		}
+		break;
+	}
+	case WM_RBUTTONDOWN:
+	{
+		if (current_player && typeid(*current_player) == typeid(Human))
+		{
+			((Human*)current_player)->set_xy(PASS);
+			return 0;
 		}
+		break;
 	}
 	case WM_PAINT:
 	{
@@ -368,6 +421,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				Ellipse(hDC, x, y, x + GRID_WIDTH, y + GRID_WIDTH);
 			}
 			else {
+				// PASS
 				SetTextColor(hDC, (record_num & 1) ? RGB(0, 0, 0) : RGB(255, 255, 255));
 				SetBkMode(hDC, TRANSPARENT);
 				HFONT hPrevFont = (HFONT)SelectObject(hDC, hFontPass);
@@ -530,9 +584,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 				}
 				int y = GRID_SIZE - atoi(line + 8) + 1;
 
-				XY xy = x + BOARD_WIDTH * y;
-
-				board.move(xy, color);
+				xy = x + BOARD_WIDTH * y;
 
 				InvalidateRect(hMainWnd, NULL, FALSE);
 			}
@@ -540,7 +592,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 				xy = PASS;
 			}
 
-			board.move(PASS, color);
+			board.move(xy, color);
 			record[record_num++] = xy; // 棋譜追加
 
 			printf("= \n\n");

@@ -5,6 +5,6 @@
 class Player
 {
 public:
-	virtual int select_move(Board& board, Color color) = 0;
+	virtual XY select_move(Board& board, Color color) = 0;
 };
 

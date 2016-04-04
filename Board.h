@@ -34,6 +34,11 @@ inline int get_y(const XY xy)
 	return xy / BOARD_WIDTH;
 }
 
+inline XY get_xy(const int x, const int y)
+{
+	return x + BOARD_WIDTH * y;
+}
+
 enum MoveResult { SUCCESS, ILLIGAL, KO, EYE };
 
 // É{Å[Éh

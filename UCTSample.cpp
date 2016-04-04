@@ -239,7 +239,7 @@ int search_uct(Board& board, const Color color, UCTNode* node, Color root_color)
 }
 
 // ‘Å‚ÂŽè‚ð‘I‘ð
-int UCTSample::select_move(Board& board, Color color)
+XY UCTSample::select_move(Board& board, Color color)
 {
 	root = create_root_node();
 	root->expand_node(board);
