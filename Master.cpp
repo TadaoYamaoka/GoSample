@@ -206,6 +206,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	static HWND cmbPlayers[2];
 	static HWND btnStart;
 	const int BTN_ID_START = 0;
+	const int CMB_ID_PLAYER = 1;
 
 	switch (uMsg)
 	{
@@ -219,7 +220,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		cmbPlayers[0] = CreateWindow(WC_COMBOBOX, L"Player1", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST,
 			infoX, infoY, scaledX(INFO_WIDTH), scaledY(CTRL_HEIGHT * 10),
-			hWnd, NULL, hInstance, NULL);
+			hWnd, (HMENU)CMB_ID_PLAYER, hInstance, NULL);
 		infoY += scaledY(CTRL_HEIGHT + CTRL_MARGIN * 2);
 
 		staticPlayers[1] = CreateWindow(WC_STATIC, L"White:", WS_CHILD | WS_VISIBLE, infoX, infoY, scaledX(INFO_WIDTH), scaledY(CTRL_HEIGHT), hWnd, NULL, hInstance, NULL);
@@ -227,30 +228,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		cmbPlayers[1] = CreateWindow(WC_COMBOBOX, L"Player2", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST,
 			infoX, infoY, scaledX(INFO_WIDTH), scaledY(CTRL_HEIGHT * 10),
-			hWnd, NULL, hInstance, NULL);
+			hWnd, (HMENU)(CMB_ID_PLAYER + 1), hInstance, NULL);
 		infoY += scaledY(CTRL_HEIGHT + CTRL_MARGIN * 2);
 
-		if (!isGTPMode)
+		for (int i = 0; i < 2; i++)
 		{
-			for (int i = 0; i < 2; i++)
+			for (Player* player : playerList)
 			{
-				for (Player* player : playerList)
-				{
-					const char* name = typeid(*player).name();
-					SendMessageA(cmbPlayers[i], CB_ADDSTRING, NULL, (LPARAM)name + 6);
-				}
-				SendMessage(cmbPlayers[i], CB_SETCURSEL, 0, NULL);
+				const char* name = typeid(*player).name();
+				SendMessageA(cmbPlayers[i], CB_ADDSTRING, NULL, (LPARAM)name + 6);
 			}
+			SendMessage(cmbPlayers[i], CB_SETCURSEL, 0, NULL);
 		}
 
 		// スタートボタン
 		btnStart = CreateWindow(WC_BUTTON, L"Start", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, infoX, infoY, scaledX(INFO_WIDTH), scaledY(CTRL_HEIGHT),
-			hWnd, BTN_ID_START, hInstance, NULL);
+			hWnd, (HMENU)BTN_ID_START, hInstance, NULL);
 
 		if (isGTPMode)
 		{
-			EnableWindow(cmbPlayers[0], FALSE);
-			EnableWindow(cmbPlayers[1], FALSE);
 			EnableWindow(btnStart, FALSE);
 		}
 
@@ -258,11 +254,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_COMMAND:
 	{
-		if (HIWORD(wParam) == BN_CLICKED)
+		switch (HIWORD(wParam))
+		{
+		case BN_CLICKED:
 		{
 			switch (LOWORD(wParam)) {
 			case BTN_ID_START:
 			{
+				EnableWindow(btnStart, FALSE);
+
 				// ボード初期化
 				board.init(GRID_SIZE);
 
@@ -271,17 +271,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				{
 					int index = SendMessage(cmbPlayers[i], CB_GETCURSEL, NULL, NULL);
 					players[i] = playerList[index];
-
-					if (typeid(*players[i]) == typeid(Human))
-					{
-						((Human*)players[i])->init();
-					}
 				}
 
 				// 開始
 				Color color = BLACK;
 				Color pre_xy = -1;
 				record_num = 0;
+				current_player = nullptr;
 
 				InvalidateRect(hWnd, NULL, FALSE);
 
@@ -318,6 +314,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 						break;
 					}
 
+					record[record_num++] = xy; // 棋譜追加
+
 					if (xy == PASS && pre_xy == PASS)
 					{
 						// 終局
@@ -326,7 +324,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 					pre_xy = xy;
 					color = opponent(color);
-					record[record_num++] = xy; // 棋譜追加
 
 					// 描画更新
 					if (typeid(*current_player) == typeid(UCTSample))
@@ -353,12 +350,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				}
 				isPalying = false;
 
+				EnableWindow(btnStart, TRUE);
+				InvalidateRect(hWnd, NULL, FALSE);
+
 				// SGFで棋譜を出力
 				print_sfg();
 
 				return 0;
 			}
 			}
+			break;
+		}
+		case CBN_SELCHANGE:
+		{
+			int i = LOWORD(wParam) - CMB_ID_PLAYER;
+			int index = SendMessage(cmbPlayers[i], CB_GETCURSEL, NULL, NULL);
+			players[i] = playerList[index];
+		}
 		}
 		break;
 	}
@@ -636,7 +644,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 			char charColor = line[8];
 			Color color = (charColor == 'b') ? BLACK : WHITE;
 
-			Player* current_player = players[color - 1];
+			current_player = players[color - 1];
 
 			XY xy = current_player->select_move(board, color);
 			board.move(xy, color, false);

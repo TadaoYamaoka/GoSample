@@ -3,6 +3,7 @@
 
 XY Human::select_move(Board& board, Color color)
 {
+	xy = -1;
 	while (xy < 0)
 	{
 		Sleep(100);

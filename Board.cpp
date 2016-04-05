@@ -70,6 +70,7 @@ MoveResult Board::move(const XY xy, const Color color, bool fill_eye_err)
 {
 	// ÉpÉXÇÃèÍçá
 	if (xy == PASS) {
+		ko = 0;
 		return SUCCESS;
 	}
 
