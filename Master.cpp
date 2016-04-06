@@ -289,7 +289,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 					// 手を選択
 					current_player = players[color - 1];
+					DWORD startTime = GetTickCount();
 					XY xy = current_player->select_move(board_tmp, color);
+					DWORD elapseTime = GetTickCount() - startTime;
 
 					if (xy < 0)
 					{
@@ -315,6 +317,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					}
 
 					record[record_num++] = xy; // 棋譜追加
+
+					// プレイアウト数と時間を表示
+					if (typeid(*current_player) == typeid(UCTSample))
+					{
+						UCTNode* root = ((UCTSample*)current_player)->root;
+						printf("playout num = %d, elapse time = %d ms\n", root->playout_num_sum, elapseTime);
+					}
 
 					if (xy == PASS && pre_xy == PASS)
 					{
