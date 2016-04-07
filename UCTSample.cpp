@@ -301,3 +301,8 @@ XY UCTSample::select_move(Board& board, Color color)
 
 	return best_move->xy;
 }
+
+int UCTSample::get_created_node()
+{
+	return p_node_pool - node_pool;
+}

@@ -321,8 +321,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					// プレイアウト数と時間を表示
 					if (typeid(*current_player) == typeid(UCTSample))
 					{
-						UCTNode* root = ((UCTSample*)current_player)->root;
-						printf("playout num = %d, elapse time = %d ms\n", root->playout_num_sum, elapseTime);
+						UCTSample* player = (UCTSample*)current_player;
+						UCTNode* root = player->root;
+						printf("playout num = %d, created node num = %5d, elapse time = %4d ms\n", root->playout_num_sum, player->get_created_node(), elapseTime);
 					}
 
 					if (xy == PASS && pre_xy == PASS)
