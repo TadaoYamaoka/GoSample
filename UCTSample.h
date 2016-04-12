@@ -13,7 +13,7 @@ public:
 	int child_num; // 子ノードの数
 	UCTNode* child; // 子ノード
 
-	void expand_node(const Board& board);
+	bool expand_node(const Board& board);
 };
 
 class UCTSample : public Player

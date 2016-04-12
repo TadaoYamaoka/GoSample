@@ -3,7 +3,7 @@
 #include "UCTSample.h"
 
 const int FPU = 10; // First Play Urgency
-const double C = 0.5; // UCB定数
+const double C = 1.0; // UCB定数
 const int THR = 20; // ノード展開の閾値
 int PLAYOUT_MAX = 2000;
 
@@ -21,6 +21,10 @@ UCTNode* create_root_node()
 
 UCTNode* create_node(const XY xy)
 {
+	if (p_node_pool + 1 >= node_pool + NODE_MAX)
+	{
+		return nullptr;
+	}
 	p_node_pool++;
 	p_node_pool->xy = xy;
 	p_node_pool->playout_num = 0;
@@ -31,7 +35,7 @@ UCTNode* create_node(const XY xy)
 }
 
 // ノード展開
-void UCTNode::expand_node(const Board& board)
+bool UCTNode::expand_node(const Board& board)
 {
 	for (XY xy = BOARD_SIZE + 3; xy < BOARD_MAX - (BOARD_SIZE + 3); xy++)
 	{
@@ -43,13 +47,19 @@ void UCTNode::expand_node(const Board& board)
 	}
 	// PASSを追加
 	child = create_node(PASS);
+	if (child == nullptr)
+	{
+		child_num = 0;
+		return false;
+	}
 	child_num++;
 
 	child -= (child_num - 1); // 先頭のポインタ
+	return true;
 }
 
 // 終局 勝敗を返す
-int end_game(const Board& board, const Color color)
+Color end_game(const Board& board)
 {
 	// 中国ルールで数える
 	int score = 0;
@@ -84,28 +94,16 @@ int end_game(const Board& board, const Color color)
 	score = stone_num[BLACK] - stone_num[WHITE];
 	double final_score = score - KOMI;
 
-	if (color == BLACK)
-	{
-		if (final_score > 0) {
-			return 1;
-		}
-		else {
-			return 0;
-		}
+	if (final_score > 0) {
+		return BLACK;
 	}
 	else {
-		if (final_score < 0)
-		{
-			return 1;
-		}
-		else {
-			return 0;
-		}
+		return WHITE;
 	}
 }
 
 // プレイアウト
-int playout(Board& board, UCTNode* node, const Color color, const Color root_color)
+Color playout(Board& board, UCTNode* node, const Color color)
 {
 	int possibles[19 * 19]; // 動的に確保しない
 
@@ -163,7 +161,7 @@ int playout(Board& board, UCTNode* node, const Color color, const Color root_col
 	}
 
 	// 終局 勝敗を返す
-	return end_game(board, root_color);
+	return end_game(board);
 }
 
 // UCBからプレイアウトする手を選択
@@ -195,7 +193,7 @@ UCTNode* select_node_with_ucb(UCTNode* node)
 }
 
 // UCT
-int search_uct(Board& board, const Color color, UCTNode* node, Color root_color)
+Color search_uct(Board& board, const Color color, UCTNode* node)
 {
 	// UCBからプレイアウトする手を選択
 	UCTNode* selected_node;
@@ -214,24 +212,36 @@ int search_uct(Board& board, const Color color, UCTNode* node, Color root_color)
 		}
 	}
 
-	int win;
+	Color win;
 
 	// 閾値以下の場合プレイアウト
 	if (selected_node->playout_num < THR)
 	{
-		win = playout(board, selected_node, opponent(color), root_color);
+		win = playout(board, selected_node, opponent(color));
 	}
 	else {
 		// ノードを展開
 		if (selected_node->child_num == 0)
 		{
-			selected_node->expand_node(board);
+			if (selected_node->expand_node(board))
+			{
+				win = search_uct(board, opponent(color), selected_node);
+			}
+			else {
+				// ノードプール不足
+				win = playout(board, selected_node, opponent(color));
+			}
 		}
-		win = search_uct(board, opponent(color), selected_node, root_color);
+		else {
+			win = search_uct(board, opponent(color), selected_node);
+		}
 	}
 
 	// 勝率を更新
-	selected_node->win_num += win;
+	if (win == color)
+	{
+		selected_node->win_num++;
+	}
 	selected_node->playout_num++;
 	node->playout_num_sum++;
 
@@ -250,7 +260,7 @@ XY UCTSample::select_move(Board& board, Color color)
 		Board board_tmp = board;
 
 		// UCT
-		search_uct(board_tmp, color, root, color);
+		search_uct(board_tmp, color, root);
 	}
 
 	// 最もプレイアウト数が多い手を選ぶ
@@ -304,5 +314,5 @@ XY UCTSample::select_move(Board& board, Color color)
 
 int UCTSample::get_created_node()
 {
-	return p_node_pool - node_pool;
+	return (int)(p_node_pool - node_pool);
 }
