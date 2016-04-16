@@ -28,23 +28,23 @@ void test_001() {
 	for (int i = 0; i < player.root->child_num; i++)
 	{
 		UCTNode* child = player.root->child + i;
-		TRACE(L"x,y = %d,%d : win = %d : playout_num = %d\n", get_x(child->xy), get_y(child->xy), child->win_num, child->playout_num);
+		TRACE(L"xy = %d, x,y = %d,%d : win = %d : playout_num = %d\n", child->xy, get_x(child->xy), get_y(child->xy), child->win_num, child->playout_num);
 	}
-	TRACE(L"xy = %d\n", xy);
+	TRACE(L"xy = %d, x,y = %d,%d\n", xy, get_x(xy), get_y(xy));
 }
 
 void test_002() {
 	Color test_board[] = {
-		//  1  2  3  4  5  6  7  8  9
+	//  1  2  3  4  5  6  7  8  9
 		2, 2, 2, 2, 2, 1, 0, 1, 1, // 1
 		2, 2, 2, 2, 2, 1, 1, 1, 1, // 2 
 		2, 2, 2, 2, 2, 1, 1, 0, 1, // 3
 		2, 2, 2, 2, 2, 1, 1, 1, 1, // 4
-		2, 2, 2, 2, 2, 1, 1, 2, 2, // 5
+		2, 2, 2, 2, 2, 1, 1, 1, 1, // 5
 		1, 1, 1, 1, 2, 1, 1, 2, 2, // 6
-		1, 0, 0, 0, 0, 0, 0, 2, 2, // 7
+		1, 0, 0, 0, 0, 0, 0, 2, 0, // 7
 		2, 2, 2, 2, 2, 2, 2, 2, 2, // 8
-		2, 2, 2, 2, 2, 2, 2, 2, 2  // 9
+		2, 2, 2, 2, 2, 2, 2, 2, 0  // 9
 	};
 	Board board(test_board, 9);
 
@@ -54,14 +54,14 @@ void test_002() {
 	for (int i = 0; i < player.root->child_num; i++)
 	{
 		UCTNode* child = player.root->child + i;
-		TRACE(L"x,y = %d,%d : win = %d : playout_num = %d\n", get_x(child->xy), get_y(child->xy), child->win_num, child->playout_num);
+		TRACE(L"xy = %d, x,y = %d,%d : win = %d : playout_num = %d\n", child->xy, get_x(child->xy), get_y(child->xy), child->win_num, child->playout_num);
 	}
-	TRACE(L"xy = %d\n", xy);
+	TRACE(L"xy = %d, x,y = %d,%d\n", xy, get_x(xy), get_y(xy));
 }
 
 void test_003() {
 	Color test_board[] = {
-		//  1  2  3  4  5  6  7  8  9
+	//  1  2  3  4  5  6  7  8  9
 		0, 0, 2, 1, 0, 0, 2, 1, 0,
 		0, 2, 0, 1, 0, 0, 0, 0, 1,
 		2, 0, 0, 1, 0, 2, 2, 1, 0,
@@ -80,17 +80,17 @@ void test_003() {
 	for (int i = 0; i < player.root->child_num; i++)
 	{
 		UCTNode* child = player.root->child + i;
-		TRACE(L"x,y = %d,%d : win = %d : playout_num = %d\n", get_x(child->xy), get_y(child->xy), child->win_num, child->playout_num);
+		TRACE(L"xy = %d, x,y = %d,%d : win = %d : playout_num = %d\n", child->xy, get_x(child->xy), get_y(child->xy), child->win_num, child->playout_num);
 	}
-	TRACE(L"xy = %d\n", xy);
+	TRACE(L"xy = %d, x,y = %d,%d\n", xy, get_x(xy), get_y(xy));
 }
 
 int wmain()
 {
 
 	//test_001();
-	//test_002();
-	test_003();
+	test_002();
+	//test_003();
 
 	return 0;
 }

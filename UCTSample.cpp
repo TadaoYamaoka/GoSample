@@ -7,7 +7,7 @@ const double C = 1.0; // UCB定数
 const int THR = 20; // ノード展開の閾値
 int PLAYOUT_MAX = 2000;
 
-const int NODE_MAX = 30000;
+const int NODE_MAX = 100000;
 UCTNode node_pool[NODE_MAX]; // ノードプール(高速化のため動的に確保しない)
 UCTNode* p_node_pool;
 
@@ -103,7 +103,7 @@ Color end_game(const Board& board)
 }
 
 // プレイアウト
-Color playout(Board& board, UCTNode* node, const Color color)
+int playout(Board& board, UCTNode* node, const Color color)
 {
 	int possibles[19 * 19]; // 動的に確保しない
 
@@ -161,7 +161,14 @@ Color playout(Board& board, UCTNode* node, const Color color)
 	}
 
 	// 終局 勝敗を返す
-	return end_game(board);
+	Color win = end_game(board);
+	if (win == color)
+	{
+		return 1;
+	}
+	else {
+		return 0;
+	}
 }
 
 // UCBからプレイアウトする手を選択
@@ -193,7 +200,7 @@ UCTNode* select_node_with_ucb(UCTNode* node)
 }
 
 // UCT
-Color search_uct(Board& board, const Color color, UCTNode* node)
+int search_uct(Board& board, const Color color, UCTNode* node)
 {
 	// UCBからプレイアウトする手を選択
 	UCTNode* selected_node;
@@ -212,12 +219,12 @@ Color search_uct(Board& board, const Color color, UCTNode* node)
 		}
 	}
 
-	Color win;
+	int win;
 
 	// 閾値以下の場合プレイアウト
 	if (selected_node->playout_num < THR)
 	{
-		win = playout(board, selected_node, opponent(color));
+		win = 1 - playout(board, selected_node, opponent(color));
 	}
 	else {
 		// ノードを展開
@@ -225,23 +232,20 @@ Color search_uct(Board& board, const Color color, UCTNode* node)
 		{
 			if (selected_node->expand_node(board))
 			{
-				win = search_uct(board, opponent(color), selected_node);
+				win = 1 - search_uct(board, opponent(color), selected_node);
 			}
 			else {
 				// ノードプール不足
-				win = playout(board, selected_node, opponent(color));
+				win = 1 - playout(board, selected_node, opponent(color));
 			}
 		}
 		else {
-			win = search_uct(board, opponent(color), selected_node);
+			win = 1 - search_uct(board, opponent(color), selected_node);
 		}
 	}
 
 	// 勝率を更新
-	if (win == color)
-	{
-		selected_node->win_num++;
-	}
+	selected_node->win_num += win;
 	selected_node->playout_num++;
 	node->playout_num_sum++;
 
