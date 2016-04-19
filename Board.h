@@ -47,10 +47,7 @@ class Board
 	Color board[(19+2) * (19+2)];
 
 	// 呼吸点の数と連結した石の数を取得(内部用再帰処理)
-	void count_liberties_and_chains_inner(const XY xy, const Color color, int &liberties, int &chains);
-
-	// 呼吸点の数と連結した石の数を取得
-	void count_liberties_and_chains(const XY xy, const Color color, int &liberties, int &chains);
+	void count_liberties_and_chains_inner(const XY xy, const Color color, int &liberties, int &chains) const;
 
 	// 石を取る
 	void capture(const XY xy, const Color color);
@@ -114,5 +111,11 @@ public:
 
 	// 石を打つ
 	MoveResult move(const XY xy, const Color color, bool fill_eye_err = true);
+
+	// 呼吸点の数と連結した石の数を取得
+	void count_liberties_and_chains(const XY xy, const Color color, int &liberties, int &chains) const;
+
+	// 合法手か
+	MoveResult is_legal(const XY xy, const Color color, bool fill_eye_err) const;
 };
 

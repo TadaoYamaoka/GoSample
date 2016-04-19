@@ -122,20 +122,22 @@ int playout(Board& board, UCTNode* node, const Color color)
 			}
 		}
 
-		int selected;
+		int selected_xy;
+		int selected_i;
 		while (true)
 		{
 			if (possibles_num == 0)
 			{
-				selected = PASS;
+				selected_xy = PASS;
 			}
 			else {
 				// ランダムで手を選ぶ
-				selected = possibles[rand() % possibles_num];
+				selected_i = rand() % possibles_num;
+				selected_xy = possibles[selected_i];
 			}
 
 			// 石を打つ
-			MoveResult err = board.move(selected, color_tmp);
+			MoveResult err = board.move(selected_xy, color_tmp);
 
 			if (err == SUCCESS)
 			{
@@ -143,18 +145,18 @@ int playout(Board& board, UCTNode* node, const Color color)
 			}
 
 			// 手を削除
-			possibles[selected] = possibles[possibles_num - 1];
+			possibles[selected_i] = possibles[possibles_num - 1];
 			possibles_num--;
 		}
 
 		// 連続パスで終了
-		if (selected == PASS && pre_xy == PASS)
+		if (selected_xy == PASS && pre_xy == PASS)
 		{
 			break;
 		}
 
 		// 一つ前の手を保存
-		pre_xy = selected;
+		pre_xy = selected_xy;
 
 		// プレイヤー交代
 		color_tmp = opponent(color_tmp);

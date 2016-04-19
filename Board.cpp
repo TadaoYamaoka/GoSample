@@ -11,7 +11,7 @@ XY DIR4[4];
 bool checked[(19 + 2) * (19 + 2)];
 
 // 呼吸点の数と連結した石の数を取得(内部用再帰処理)
-void Board::count_liberties_and_chains_inner(const XY xy, const Color color, int &liberties, int &chains)
+void Board::count_liberties_and_chains_inner(const XY xy, const Color color, int &liberties, int &chains) const
 {
 	// チェック済みする
 	checked[xy] = true;
@@ -42,7 +42,7 @@ void Board::count_liberties_and_chains_inner(const XY xy, const Color color, int
 }
 
 // 呼吸点の数と連結した石の数を取得
-void Board::count_liberties_and_chains(const XY xy, const Color color, int &liberties, int &chains)
+void Board::count_liberties_and_chains(const XY xy, const Color color, int &liberties, int &chains) const
 {
 	memset(checked, false, BOARD_MAX);
 	liberties = 0;
@@ -158,6 +158,69 @@ MoveResult Board::move(const XY xy, const Color color, bool fill_eye_err)
 	}
 	else {
 		ko = 0;
+	}
+
+	return SUCCESS;
+}
+
+// 合法手か
+MoveResult Board::is_legal(const XY xy, const Color color, bool fill_eye_err) const
+{
+	// パスの場合
+	if (xy == PASS) {
+		return SUCCESS;
+	}
+
+	int empties = 0; // 空きの数
+	int blanks = 0; // 壁の数
+	int captures = 0; // 取れる石の数
+	int alives = 0; // 生き
+	int liberties, chains;
+
+	for (int i = 0; i < 4; i++)
+	{
+		XY xyd = xy + DIR4[i];
+		Color c = board[xyd];
+		// 空きの場合
+		if (c == EMPTY)
+		{
+			empties++;
+			continue;
+		}
+		// 壁の場合
+		if (c == BLANK)
+		{
+			blanks++;
+			continue;
+		}
+		// 呼吸点の数と連結した石の数を取得
+		count_liberties_and_chains(xyd, c, liberties, chains);
+
+		// 取ることができる
+		if (c == opponent(color) && liberties == 1)
+		{
+			captures += chains;
+		}
+		else if (c == color && liberties >= 2)
+		{
+			alives++;
+		}
+	}
+
+	// 自殺手
+	if (captures == 0 && empties == 0 && alives == 0)
+	{
+		return ILLIGAL;
+	}
+	// コウ
+	if (xy == ko)
+	{
+		return KO;
+	}
+	// 眼
+	if (blanks + alives == 4 && fill_eye_err)
+	{
+		return EYE;
 	}
 
 	return SUCCESS;
