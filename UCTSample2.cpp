@@ -111,10 +111,19 @@ int UCTSample2::playout(Board& board, UCTNode* node, const Color color)
 		// 直前の手の周辺でパターンを検索
 		if (pre_xy > 0)
 		{
-			for (int dy = -BOARD_WIDTH; dy <= BOARD_WIDTH; dy += BOARD_WIDTH)
+			for (int dy = -BOARD_WIDTH*2; dy <= BOARD_WIDTH*2; dy += BOARD_WIDTH)
 			{
-				for (int dx = -1; dx <= 1; dx++)
+				if (pre_xy + dy <= 0 || pre_xy + dy > BOARD_WIDTH * BOARD_SIZE)
 				{
+					continue;
+				}
+
+				for (int dx = -2; dx <= 2; dx++)
+				{
+					if (pre_xy + dx <= 0 || pre_xy + dx > BOARD_SIZE)
+					{
+						continue;
+					}
 					if (dy == 0 && dx == 0)
 					{
 						continue;
