@@ -17,7 +17,7 @@ static bool isPalying = false;
 static Board board;
 static Player* players[2] = { playerList[1], playerList[1] };
 Player* current_player;
-UCTNode result[19*19];
+UCTNode result[19*19+1];
 int result_num = 0;
 
 // Šû•ˆ

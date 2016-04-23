@@ -320,5 +320,5 @@ XY UCTSample::select_move(Board& board, Color color)
 
 int UCTSample::get_created_node()
 {
-	return (int)(p_node_pool - node_pool);
+	return (int)(p_node_pool - node_pool + 1);
 }
